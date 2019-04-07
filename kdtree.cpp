@@ -363,7 +363,9 @@ public:
         // Initialize and sort the reference arrays.
         std::cout << "Building the Kd-tree!..." << std::endl;
         std::vector< std::vector<float *> > references(numDimensions, std::vector<float *>( coordinates.size() ) );
+        std::cout << sizeof(references) / 1048576. << std::endl;
         std::vector<float *> temporary( coordinates.size() );;
+        std::cout << sizeof(temporary) / 1048576. << std::endl;
         for (long i = 0; i < references.size(); i++) {
             initializeReference(coordinates, references.at(i));
             mergeSort(references.at(i), temporary, 0, references.at(i).size()-1, i, numDimensions);
@@ -372,6 +374,7 @@ public:
         // Remove references to duplicate coordinates via one pass through each reference array.
         std::cout << "Removing duplicate coordinates!..." << std::endl;
         std::vector<long> end( references.size() );
+        std::cout << sizeof(end) / 1048576. << std::endl;
         for (long i = 0; i < end.size(); i++) {
             end.at(i) = removeDuplicates(references.at(i), i, numDimensions);
         }
@@ -428,7 +431,7 @@ public:
          break;
          }
          }
-        */
+         */
         //for (long i = 0; i < dim; i++) {
         this->distance = sqrt((query[0] - this->tuple[0]) * (query[0] - this->tuple[0]) + (query[1] - this->tuple[1]) * (query[1] - this->tuple[1]) + (query[2] - this->tuple[2]) * (query[2] - this->tuple[2]));
         if (this->distance > cut) {
@@ -437,14 +440,24 @@ public:
         }
         //}
         if (inside) {
-            result.clear();
             cut = 0;
             //for (long i = 0; i < dim; i++) {
             cut = this->distance;
             //}
+            std::cout << cut;
+            std::cout << *this->tuple << std::endl;
             result.push_back(*this); // The push_back function expects a KdNode for a call by reference.
         }
         
+        if ( this->ltChild != NULL && (query[axis]) <= this->tuple[axis] ) {
+            std::list<KdNode> ltResult = this->ltChild->searchKdTree(query, cut, dim, depth + 1);
+            result.splice(result.end(), ltResult); // Can't substitute searchKdTree(...) for ltResult.
+        }
+        if ( this->gtChild != NULL && (query[axis]) >= this->tuple[axis] ) {
+            std::list<KdNode> gtResult = this->gtChild->searchKdTree(query, cut, dim, depth + 1);
+            result.splice(result.end(), gtResult); // Can't substitute searchKdTree(...) for gtResult.
+        }
+        /*
         // Search the < branch of the k-d tree if the partition coordinate of the query point minus
         // the cutoff distance is <= the partition coordinate of the k-d node.  The < branch must be
         // searched when the cutoff distance equals the partition coordinate because the super key
@@ -464,7 +477,7 @@ public:
             std::list<KdNode> gtResult = this->gtChild->searchKdTree(query, cut, dim, depth + 1);
             result.splice(result.end(), gtResult); // Can't substitute searchKdTree(...) for gtResult.
         }
-        
+        */
         return result;
     }
     
@@ -544,7 +557,7 @@ public:
      * calling parameters:
      *
      * dim - the number of dimensions
-     * depth - the depth in the k-d tree
+     * depth - the depth in the k-d tree*/
      
      public:
      void printKdTree(const unsigned short dim, const unsigned short depth) const
@@ -559,16 +572,17 @@ public:
      this->ltChild->printKdTree(dim, depth + 1);
      }
      }
-     */
+     
 };
+
+
 /* Declare the two-dimensional coordinates array that contains (x,y,z) coordinates. */
 float coordinates[10000000][3];
-#define DIMENSIONS (3)
 #define NUM_TUPLES (10000000)
 #define SEARCH_DISTANCE (INFINITY)
 /* Create a simple k-d tree and print its topology for inspection. */
 int main(int argc, const char * argv[]) {
-    std::cout << std::fixed << std::setprecision(4);
+    std::cout << std::setprecision(7);
     std::string inputFile = argv[1];
     std::ifstream input_data;
     input_data.open(inputFile.c_str());
@@ -598,21 +612,24 @@ int main(int argc, const char * argv[]) {
     // for efficiency, assignments in the initializeReference,
     // mergeSort and buildKdTree functions copy only the long*
     // pointer instead of all elements of a vector<long>.
+    std::cout << sizeof(coordinates) / 1048576 << std::endl;
     std::vector<float *> coordinateVector(NUM_TUPLES);
     for (long i = 0; i < coordinateVector.size(); ++i) {
         coordinateVector.at(i) = &(coordinates[i][0]);
     }
+    std::cout << sizeof(coordinateVector) / 1048576. << std::endl;
     const clock_t BEGINNING_OF_BUILD_PROCEDURE = clock(); // Mark the beginning of the building procedure.
-    KdNode *root = KdNode::createKdTree(coordinateVector, DIMENSIONS);
+    KdNode *root = KdNode::createKdTree(coordinateVector, 3);
     const double EXECUTION_TIME_OF_BUILD_PROCEDURE = (double)(clock() - BEGINNING_OF_BUILD_PROCEDURE) / CLOCKS_PER_SEC; // Report the execution time (in seconds).
     std::cout << "\n" << "Execution time of build procedure in minutes:\t" << EXECUTION_TIME_OF_BUILD_PROCEDURE << "\n"; // Print out the time elapsed building.
     
-    /* Print the k-d tree "sideways" with the root at the left. */
-    /* std::cout << std::endl; */
-    /* root->printKdTree(DIMENSIONS, 0); */
+     // Print the k-d tree "sideways" with the root at the left. */
+    //std::cout << std::endl;
+    //root->printKdTree(3, 0);
     bool more = true;
     while(more)
     {
+        std::cout << sizeof(root) << std::endl;
         std::string input;
         std::cout << "Do please indicate your query type, i.e., Q1 and its related parameters (i.e., x1, x2, y1, y2, z1, and z2) for range search, or Q2 and its related parameters (i.e., x1, y1, and z1) for nearest neighbour(s) search... You can also type QUIT to terminate this program...: " << std::endl;
         std::cin >> input;
@@ -631,20 +648,20 @@ int main(int argc, const char * argv[]) {
             query[1] = y1;
             query[2] = z1;
             const clock_t BEGINNING_OF_SEARCH_PROCEDURE = clock(); // Mark the beginning of the execution of the searching procedure.
-            std::list<KdNode> kdList = root->searchKdTree(query, SEARCH_DISTANCE, DIMENSIONS, 0);
+            std::list<KdNode> kdList = root->searchKdTree(query, SEARCH_DISTANCE, 3, 0);
             const double EXECUTION_TIME_OF_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_SEARCH_PROCEDURE) / CLOCKS_PER_SEC; // Report the execution time (in seconds).
             std::cout << "\n" << "Execution time of search procedure in seconds:\t" << EXECUTION_TIME_OF_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
             std::cout << std::endl << kdList.size() << " nodes within " << SEARCH_DISTANCE << " units of ";
-            KdNode::printTuple(query, DIMENSIONS);
+            KdNode::printTuple(query, 3);
             std::cout << " in all dimensions." << std::endl << std::endl;
             if (kdList.size() != 0) {
-                std::cout << "List of k-d nodes within " << SEARCH_DISTANCE << "-unit search distance follows:" << std::endl << std::endl;
-                std::list<KdNode>::iterator it;
-                for (it = kdList.begin(); it != kdList.end(); it++) {
-                    KdNode::printTuple(it->getTuple(), DIMENSIONS);
-                    std::cout << " ";
-                }
-                std::cout << std::endl << std::endl;
+            std::cout << "List of k-d nodes within " << SEARCH_DISTANCE << "-unit search distance follows:" << std::endl << std::endl;
+            std::list<KdNode>::iterator it;
+            for (it = kdList.begin(); it != kdList.end(); it++) {
+                KdNode::printTuple(it->getTuple(), 3);
+                std::cout << " ";
+            }
+            std::cout << std::endl << std::endl;
             }
             continue;
         }
@@ -671,7 +688,7 @@ int main(int argc, const char * argv[]) {
             numberOfReturnedTuples = 0;
             numberOfVisitedNodes = 0;
             const clock_t BEGINNING_OF_RANGE_SEARCH_PROCEDURE = clock();
-            root -> rangeSearch(DIMENSIONS, 0);
+            root -> rangeSearch(3, 0);
             const double EXECUTION_TIME_OF_RANGE_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_RANGE_SEARCH_PROCEDURE) / CLOCKS_PER_SEC; // Report the execution time (in minutes).
             std::cout << "\n" << "Execution time of range search procedure in seconds:\t" << EXECUTION_TIME_OF_RANGE_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
             std::cout << "Number of returned tuples: " << numberOfReturnedTuples << "\n";
@@ -681,7 +698,7 @@ int main(int argc, const char * argv[]) {
             numberOfReturnedTuples = 0;
             numberOfVisitedNodes = 0;
             const clock_t BEGINNING_OF_EXHAUSTIVE_SEARCH_PROCEDURE = clock();
-            root -> exhaustiveRangeSearch(DIMENSIONS, 0);
+            root -> exhaustiveRangeSearch(3, 0);
             const double EXECUTION_TIME_OF_EXHAUSTIVE_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_EXHAUSTIVE_SEARCH_PROCEDURE) / CLOCKS_PER_SEC; // Report the execution time (in minutes).
             std::cout << "\n" << "Execution time of exhaustive search procedure in seconds:\t" << EXECUTION_TIME_OF_EXHAUSTIVE_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
             std::cout << "Number of returned tuples: " << numberOfReturnedTuples << "\n";
