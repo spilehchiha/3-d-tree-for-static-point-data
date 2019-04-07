@@ -17,19 +17,20 @@
 #include <cmath>
 #include <iomanip>
 #include <sys/time.h>
+#include <limits>
 
 /* Range Query Configuration */
-float leftBottomPoint[] = {0.0000, 0.0000, 0.0000};
-float rightAbovePoint[] = {0.0000, 0.0000, 0.0000};
+float leftBottomPoint[] = {0, 0, 0};
+float rightAbovePoint[] = {0, 0, 0};
 unsigned long numberOfReturnedTuples = 0;
 unsigned long numberOfVisitedNodes = 0;
-long maxDepth = 0;
+//long maxDepth = 0;
 /* One node of a k-d tree */
 class KdNode
 {
 private:
     float distance;
-    long nodeDepth;
+    //long nodeDepth;
     const float *tuple;
     KdNode *ltChild,  *gtChild;
     
@@ -191,14 +192,14 @@ private:
             
             // Only one reference was passed to this function, so add it to the tree.
             node = new KdNode( references.at(0).at(end) );
-            node->nodeDepth = depth;
+            //node->nodeDepth = depth;
             
         } else if (end == start + 1) {
             
             // Two references were passed to this function in sorted order, so store the start
             // element at this level of the tree and store the end element as the > child.
             node = new KdNode( references.at(0).at(start) );
-            node->nodeDepth = depth;
+            //node->nodeDepth = depth;
             node->gtChild = new KdNode( references.at(0).at(end) );
             
         } else if (end == start + 2) {
@@ -207,7 +208,7 @@ private:
             // store the median element at this level of the tree, store the start
             // element as the < child and store the end element as the > child.
             node = new KdNode( references.at(0).at(start + 1) );
-            node->nodeDepth = depth;
+            //node->nodeDepth = depth;
             node->ltChild = new KdNode( references.at(0).at(start) );
             node->gtChild = new KdNode( references.at(0).at(end) );
             
@@ -221,7 +222,7 @@ private:
             
             // Store the median element of references[0] in a new kdNode.
             node = new KdNode( references.at(0).at(median) );
-            node->nodeDepth = depth;
+            //node->nodeDepth = depth;
             
             // Copy references[0] to the temporary array before partitioning.
             for (long i = start; i <= end; i++) {
@@ -296,7 +297,7 @@ private:
         }
         
         // Return the pointer to the root of the k-d tree.
-        if (depth > maxDepth) {maxDepth = depth;}
+        //if (depth > maxDepth) {maxDepth = depth;}
         return node;
     }
     
@@ -361,20 +362,15 @@ public:
     static KdNode *createKdTree(std::vector<float *>& coordinates, const long numDimensions)
     {
         // Initialize and sort the reference arrays.
-        std::cout << "Building the Kd-tree!..." << std::endl;
         std::vector< std::vector<float *> > references(numDimensions, std::vector<float *>( coordinates.size() ) );
-        std::cout << sizeof(references) / 1048576. << std::endl;
         std::vector<float *> temporary( coordinates.size() );;
-        std::cout << sizeof(temporary) / 1048576. << std::endl;
         for (long i = 0; i < references.size(); i++) {
             initializeReference(coordinates, references.at(i));
             mergeSort(references.at(i), temporary, 0, references.at(i).size()-1, i, numDimensions);
         }
         
         // Remove references to duplicate coordinates via one pass through each reference array.
-        std::cout << "Removing duplicate coordinates!..." << std::endl;
         std::vector<long> end( references.size() );
-        std::cout << sizeof(end) / 1048576. << std::endl;
         for (long i = 0; i < end.size(); i++) {
             end.at(i) = removeDuplicates(references.at(i), i, numDimensions);
         }
@@ -424,28 +420,14 @@ public:
         // in all k dimensions, add the k-d node to a list.
         std::list<KdNode> result;
         bool inside = true;
-        /*
-         for (long i = 0; i < dim; i++) {
-         if (abs(query[i] - this->tuple[i]) > cut) {
-         inside = false;
-         break;
-         }
-         }
-         */
-        //for (long i = 0; i < dim; i++) {
         this->distance = sqrt((query[0] - this->tuple[0]) * (query[0] - this->tuple[0]) + (query[1] - this->tuple[1]) * (query[1] - this->tuple[1]) + (query[2] - this->tuple[2]) * (query[2] - this->tuple[2]));
         if (this->distance > cut) {
             inside = false;
-            //break;
         }
         //}
         if (inside) {
             cut = 0;
-            //for (long i = 0; i < dim; i++) {
             cut = this->distance;
-            //}
-            std::cout << cut;
-            std::cout << *this->tuple << std::endl;
             result.push_back(*this); // The push_back function expects a KdNode for a call by reference.
         }
         
@@ -458,26 +440,26 @@ public:
             result.splice(result.end(), gtResult); // Can't substitute searchKdTree(...) for gtResult.
         }
         /*
-        // Search the < branch of the k-d tree if the partition coordinate of the query point minus
-        // the cutoff distance is <= the partition coordinate of the k-d node.  The < branch must be
-        // searched when the cutoff distance equals the partition coordinate because the super key
-        // may assign a point to either branch of the tree if the sorting or partition coordinate,
-        // which forms the most significant portion of the super key, shows equality.
-        if ( this->ltChild != NULL && (query[axis] - cut) <= this->tuple[axis] ) {
-            std::list<KdNode> ltResult = this->ltChild->searchKdTree(query, cut, dim, depth + 1);
-            result.splice(result.end(), ltResult); // Can't substitute searchKdTree(...) for ltResult.
-        }
-        
-        // Search the > branch of the k-d tree if the partition coordinate of the query point plus
-        // the cutoff distance is >= the partition coordinate of the k-d node.  The < branch must be
-        // searched when the cutoff distance equals the partition coordinate because the super key
-        // may assign a point to either branch of the tree if the sorting or partition coordinate,
-        // which forms the most significant portion of the super key, shows equality.
-        if ( this->gtChild != NULL && (query[axis] + cut) >= this->tuple[axis] ) {
-            std::list<KdNode> gtResult = this->gtChild->searchKdTree(query, cut, dim, depth + 1);
-            result.splice(result.end(), gtResult); // Can't substitute searchKdTree(...) for gtResult.
-        }
-        */
+         // Search the < branch of the k-d tree if the partition coordinate of the query point minus
+         // the cutoff distance is <= the partition coordinate of the k-d node.  The < branch must be
+         // searched when the cutoff distance equals the partition coordinate because the super key
+         // may assign a point to either branch of the tree if the sorting or partition coordinate,
+         // which forms the most significant portion of the super key, shows equality.
+         if ( this->ltChild != NULL && (query[axis] - cut) <= this->tuple[axis] ) {
+         std::list<KdNode> ltResult = this->ltChild->searchKdTree(query, cut, dim, depth + 1);
+         result.splice(result.end(), ltResult); // Can't substitute searchKdTree(...) for ltResult.
+         }
+         
+         // Search the > branch of the k-d tree if the partition coordinate of the query point plus
+         // the cutoff distance is >= the partition coordinate of the k-d node.  The < branch must be
+         // searched when the cutoff distance equals the partition coordinate because the super key
+         // may assign a point to either branch of the tree if the sorting or partition coordinate,
+         // which forms the most significant portion of the super key, shows equality.
+         if ( this->gtChild != NULL && (query[axis] + cut) >= this->tuple[axis] ) {
+         std::list<KdNode> gtResult = this->gtChild->searchKdTree(query, cut, dim, depth + 1);
+         result.splice(result.end(), gtResult); // Can't substitute searchKdTree(...) for gtResult.
+         }
+         */
         return result;
     }
     
@@ -558,21 +540,21 @@ public:
      *
      * dim - the number of dimensions
      * depth - the depth in the k-d tree*/
-     
-     public:
-     void printKdTree(const unsigned short dim, const unsigned short depth) const
-     {
-     if (this->gtChild != NULL) {
-     this->gtChild->printKdTree(dim, depth + 1);
-     }
-     for (short i = 0; i < depth; i++) std::cout << "       ";
-     printTuple(this->tuple, dim);
-     std::cout << std::endl;
-     if (this->ltChild != NULL) {
-     this->ltChild->printKdTree(dim, depth + 1);
-     }
-     }
-     
+    
+public:
+    void printKdTree(const unsigned short dim, const unsigned short depth) const
+    {
+        if (this->gtChild != NULL) {
+            this->gtChild->printKdTree(dim, depth + 1);
+        }
+        for (short i = 0; i < depth; i++) std::cout << "       ";
+        printTuple(this->tuple, dim);
+        std::cout << std::endl;
+        if (this->ltChild != NULL) {
+            this->ltChild->printKdTree(dim, depth + 1);
+        }
+    }
+    
 };
 
 
@@ -592,7 +574,6 @@ int main(int argc, const char * argv[]) {
     char leftParen;
     std::string line;
     int i = 0;
-    std::cout << "Extracting the data from the disk into the main memory!..." << std::endl;
     while (std::getline(input_data, line))
     {
         std::istringstream iss(line);
@@ -602,7 +583,6 @@ int main(int argc, const char * argv[]) {
         coordinates[i][1] = yCoordinate;
         coordinates[i][2] = zCoordinate;
         i++;
-        if (i % 1000000 == 0) {std::cout << "At " << i << "th tuple!..." << std::endl;}
     }
     //std::istringstream instr(line);
     //instr >> xCoordinate >> yCoordinate >> zCoordinate;
@@ -612,24 +592,21 @@ int main(int argc, const char * argv[]) {
     // for efficiency, assignments in the initializeReference,
     // mergeSort and buildKdTree functions copy only the long*
     // pointer instead of all elements of a vector<long>.
-    std::cout << sizeof(coordinates) / 1048576 << std::endl;
     std::vector<float *> coordinateVector(NUM_TUPLES);
     for (long i = 0; i < coordinateVector.size(); ++i) {
         coordinateVector.at(i) = &(coordinates[i][0]);
     }
-    std::cout << sizeof(coordinateVector) / 1048576. << std::endl;
     const clock_t BEGINNING_OF_BUILD_PROCEDURE = clock(); // Mark the beginning of the building procedure.
     KdNode *root = KdNode::createKdTree(coordinateVector, 3);
     const double EXECUTION_TIME_OF_BUILD_PROCEDURE = (double)(clock() - BEGINNING_OF_BUILD_PROCEDURE) / CLOCKS_PER_SEC; // Report the execution time (in seconds).
     std::cout << "\n" << "Execution time of build procedure in minutes:\t" << EXECUTION_TIME_OF_BUILD_PROCEDURE << "\n"; // Print out the time elapsed building.
     
-     // Print the k-d tree "sideways" with the root at the left. */
+    // Print the k-d tree "sideways" with the root at the left. */
     //std::cout << std::endl;
     //root->printKdTree(3, 0);
     bool more = true;
     while(more)
     {
-        std::cout << sizeof(root) << std::endl;
         std::string input;
         std::cout << "Do please indicate your query type, i.e., Q1 and its related parameters (i.e., x1, x2, y1, y2, z1, and z2) for range search, or Q2 and its related parameters (i.e., x1, y1, and z1) for nearest neighbour(s) search... You can also type QUIT to terminate this program...: " << std::endl;
         std::cin >> input;
@@ -655,13 +632,13 @@ int main(int argc, const char * argv[]) {
             KdNode::printTuple(query, 3);
             std::cout << " in all dimensions." << std::endl << std::endl;
             if (kdList.size() != 0) {
-            std::cout << "List of k-d nodes within " << SEARCH_DISTANCE << "-unit search distance follows:" << std::endl << std::endl;
-            std::list<KdNode>::iterator it;
-            for (it = kdList.begin(); it != kdList.end(); it++) {
-                KdNode::printTuple(it->getTuple(), 3);
-                std::cout << " ";
-            }
-            std::cout << std::endl << std::endl;
+                std::cout << "List of k-d nodes within " << SEARCH_DISTANCE << "-unit search distance follows:" << std::endl << std::endl;
+                std::list<KdNode>::iterator it;
+                for (it = kdList.begin(); it != kdList.end(); it++) {
+                    KdNode::printTuple(it->getTuple(), 3);
+                    std::cout << " ";
+                }
+                std::cout << std::endl << std::endl;
             }
             continue;
         }
@@ -703,7 +680,7 @@ int main(int argc, const char * argv[]) {
             std::cout << "\n" << "Execution time of exhaustive search procedure in seconds:\t" << EXECUTION_TIME_OF_EXHAUSTIVE_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
             std::cout << "Number of returned tuples: " << numberOfReturnedTuples << "\n";
             std::cout << "Number of visited nodes: " << numberOfVisitedNodes << "\n";
-            std::cout << maxDepth << std::endl;
+            //std::cout << maxDepth << std::endl;
             continue;
         }
         else
