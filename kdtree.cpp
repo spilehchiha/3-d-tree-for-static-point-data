@@ -17,6 +17,7 @@
 #include <cmath>
 #include <iomanip>
 #include <sys/time.h>
+
 /* Range Query Configuration */
 float leftBottomPoint[] = {0.0000, 0.0000, 0.0000};
 float rightAbovePoint[] = {0.0000, 0.0000, 0.0000};
@@ -27,6 +28,7 @@ long maxDepth = 0;
 class KdNode
 {
 private:
+    float distance;
     long nodeDepth;
     const float *tuple;
     KdNode *ltChild,  *gtChild;
@@ -34,6 +36,7 @@ private:
 public:
     KdNode(const float *t)
     {
+        this->distance = 0;
         this->tuple = t;
         this->ltChild = this->gtChild = NULL;
     }
@@ -409,7 +412,7 @@ public:
      */
 public:
     std::list<KdNode> searchKdTree(const float * query, float cut, const long dim,
-                                   const long depth) const {
+                                   const long depth) /* const */ {
         
         // The partition cycles as x, y, z, w...
         long axis = depth % dim;
@@ -418,17 +421,26 @@ public:
         // in all k dimensions, add the k-d node to a list.
         std::list<KdNode> result;
         bool inside = true;
+        /*
+         for (long i = 0; i < dim; i++) {
+         if (abs(query[i] - this->tuple[i]) > cut) {
+         inside = false;
+         break;
+         }
+         }
+        */
         //for (long i = 0; i < dim; i++) {
-        if ((query[0] - this->tuple[0]) * (query[0] - this->tuple[0]) + (query[1] - this->tuple[1]) * (query[1] - this->tuple[1]) + (query[2] - this->tuple[2]) * (query[2] - this->tuple[2]) > cut) {
+        this->distance = sqrt((query[0] - this->tuple[0]) * (query[0] - this->tuple[0]) + (query[1] - this->tuple[1]) * (query[1] - this->tuple[1]) + (query[2] - this->tuple[2]) * (query[2] - this->tuple[2]));
+        if (this->distance > cut) {
             inside = false;
             //break;
         }
         //}
         if (inside) {
-            // result.clear();
-            // cut = 0;
+            result.clear();
+            cut = 0;
             //for (long i = 0; i < dim; i++) {
-            // cut = ((query[0] - this->tuple[0]) * (query[0] - this->tuple[0]) + (query[1] - this->tuple[1]) * (query[1] - this->tuple[1]) + (query[2] - this->tuple[2]) * (query[2] - this->tuple[2]));
+            cut = this->distance;
             //}
             result.push_back(*this); // The push_back function expects a KdNode for a call by reference.
         }
@@ -598,54 +610,89 @@ int main(int argc, const char * argv[]) {
     /* Print the k-d tree "sideways" with the root at the left. */
     /* std::cout << std::endl; */
     /* root->printKdTree(DIMENSIONS, 0); */
-    
-    /* Search the k-d tree for the k-d nodes that lie within the cutoff distance. */
-    float query[3] = {4, 3, 1};
-    const clock_t BEGINNING_OF_SEARCH_PROCEDURE = clock(); // Mark the beginning of the execution of the searching procedure.
-    std::list<KdNode> kdList = root->searchKdTree(query, SEARCH_DISTANCE, DIMENSIONS, 0);
-    const double EXECUTION_TIME_OF_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_SEARCH_PROCEDURE) / CLOCKS_PER_SEC; // Report the execution time (in seconds).
-    std::cout << "\n" << "Execution time of search procedure in seconds:\t" << EXECUTION_TIME_OF_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
-    std::cout << std::endl << kdList.size() << " nodes within " << SEARCH_DISTANCE << " units of ";
-    KdNode::printTuple(query, DIMENSIONS);
-    std::cout << " in all dimensions." << std::endl << std::endl;
-    if (kdList.size() != 0) {
-        std::cout << "List of k-d nodes within " << SEARCH_DISTANCE << "-unit search distance follows:" << std::endl << std::endl;
-        std::list<KdNode>::iterator it;
-        for (it = kdList.begin(); it != kdList.end(); it++) {
-            KdNode::printTuple(it->getTuple(), DIMENSIONS);
-            std::cout << " ";
+    bool more = true;
+    while(more)
+    {
+        std::string input;
+        std::cout << "Do please indicate your query type, i.e., Q1 and its related parameters (i.e., x1, x2, y1, y2, z1, and z2) for range search, or Q2 and its related parameters (i.e., x1, y1, and z1) for nearest neighbour(s) search... You can also type QUIT to terminate this program...: " << std::endl;
+        std::cin >> input;
+        
+        if (input == "QUIT") {more = false;}
+        else if (input == "Q2")
+        {
+            float x1;
+            float y1;
+            float z1;
+            std::cout << "Do please enter a coordinate in the format [x1 y1 z1] in order for its nearest neighbours to be found!..." << std::endl;
+            std::cin >> x1 >> y1 >> z1;
+            /* Search the k-d tree for the k-d nodes that lie within the cutoff distance. */
+            float query[3];
+            query[0] = x1;
+            query[1] = y1;
+            query[2] = z1;
+            const clock_t BEGINNING_OF_SEARCH_PROCEDURE = clock(); // Mark the beginning of the execution of the searching procedure.
+            std::list<KdNode> kdList = root->searchKdTree(query, SEARCH_DISTANCE, DIMENSIONS, 0);
+            const double EXECUTION_TIME_OF_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_SEARCH_PROCEDURE) / CLOCKS_PER_SEC; // Report the execution time (in seconds).
+            std::cout << "\n" << "Execution time of search procedure in seconds:\t" << EXECUTION_TIME_OF_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
+            std::cout << std::endl << kdList.size() << " nodes within " << SEARCH_DISTANCE << " units of ";
+            KdNode::printTuple(query, DIMENSIONS);
+            std::cout << " in all dimensions." << std::endl << std::endl;
+            if (kdList.size() != 0) {
+                std::cout << "List of k-d nodes within " << SEARCH_DISTANCE << "-unit search distance follows:" << std::endl << std::endl;
+                std::list<KdNode>::iterator it;
+                for (it = kdList.begin(); it != kdList.end(); it++) {
+                    KdNode::printTuple(it->getTuple(), DIMENSIONS);
+                    std::cout << " ";
+                }
+                std::cout << std::endl << std::endl;
+            }
+            continue;
         }
-        std::cout << std::endl << std::endl;
+        else if (input == "Q1")
+        {
+            float x1;
+            float y1;
+            float z1;
+            float x2;
+            float y2;
+            float z2;
+            std::cout << "Do please enter the range coordinates in the format [x1 x2 y1 y2 z1 z2] in order for the concerned tuples to be found, counted, and returned as you wish!..." << std::endl;
+            std::cin >> x1 >> x2 >> y1 >> y2 >> z1 >> z2;
+            // Define the query range
+            leftBottomPoint[0] = x1;
+            leftBottomPoint[1] = y1;
+            leftBottomPoint[2] = z1;
+            
+            rightAbovePoint[0] = x2;
+            rightAbovePoint[1] = y2;
+            rightAbovePoint[2] = z2;
+            
+            // Initialize attributes
+            numberOfReturnedTuples = 0;
+            numberOfVisitedNodes = 0;
+            const clock_t BEGINNING_OF_RANGE_SEARCH_PROCEDURE = clock();
+            root -> rangeSearch(DIMENSIONS, 0);
+            const double EXECUTION_TIME_OF_RANGE_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_RANGE_SEARCH_PROCEDURE) / CLOCKS_PER_SEC; // Report the execution time (in minutes).
+            std::cout << "\n" << "Execution time of range search procedure in seconds:\t" << EXECUTION_TIME_OF_RANGE_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
+            std::cout << "Number of returned tuples: " << numberOfReturnedTuples << "\n";
+            std::cout << "Number of visited nodes: " << numberOfVisitedNodes << "\n";
+            
+            // Initialize attributes
+            numberOfReturnedTuples = 0;
+            numberOfVisitedNodes = 0;
+            const clock_t BEGINNING_OF_EXHAUSTIVE_SEARCH_PROCEDURE = clock();
+            root -> exhaustiveRangeSearch(DIMENSIONS, 0);
+            const double EXECUTION_TIME_OF_EXHAUSTIVE_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_EXHAUSTIVE_SEARCH_PROCEDURE) / CLOCKS_PER_SEC; // Report the execution time (in minutes).
+            std::cout << "\n" << "Execution time of exhaustive search procedure in seconds:\t" << EXECUTION_TIME_OF_EXHAUSTIVE_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
+            std::cout << "Number of returned tuples: " << numberOfReturnedTuples << "\n";
+            std::cout << "Number of visited nodes: " << numberOfVisitedNodes << "\n";
+            std::cout << maxDepth << std::endl;
+            continue;
+        }
+        else
+        {
+            std::cout << "Oopsy daisy!... I could not understand that input. Do please enter either Q1 and its related parameters (i.e., x1, x2, y1, y2, z1, and z2) for range search, Q2 and its related parameters (i.e., x1, y1, and z1) for nearest neighbour search, or QUIT to quit the program!" << std::endl;
+            continue;
+        }
     }
-    
-    // Define the query range
-    leftBottomPoint[0] = 0;
-    leftBottomPoint[1] = 0;
-    leftBottomPoint[2] = 0;
-    
-    rightAbovePoint[0] = 10;
-    rightAbovePoint[1] = 100;
-    rightAbovePoint[2] = 1000;
-    
-    // Initialize attributes
-    numberOfReturnedTuples = 0;
-    numberOfVisitedNodes = 0;
-    const clock_t BEGINNING_OF_RANGE_SEARCH_PROCEDURE = clock();
-    root -> rangeSearch(DIMENSIONS, 0);
-    const double EXECUTION_TIME_OF_RANGE_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_RANGE_SEARCH_PROCEDURE) / CLOCKS_PER_SEC; // Report the execution time (in minutes).
-    std::cout << "\n" << "Execution time of range search procedure in seconds:\t" << EXECUTION_TIME_OF_RANGE_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
-    std::cout << "Number of returned tuples: " << numberOfReturnedTuples << "\n";
-    std::cout << "Number of visited nodes: " << numberOfVisitedNodes << "\n";
-    
-    // Initialize attributes
-    numberOfReturnedTuples = 0;
-    numberOfVisitedNodes = 0;
-    const clock_t BEGINNING_OF_EXHAUSTIVE_SEARCH_PROCEDURE = clock();
-    root -> exhaustiveRangeSearch(DIMENSIONS, 0);
-    const double EXECUTION_TIME_OF_EXHAUSTIVE_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_EXHAUSTIVE_SEARCH_PROCEDURE) / CLOCKS_PER_SEC; // Report the execution time (in minutes).
-    std::cout << "\n" << "Execution time of exhaustive search procedure in seconds:\t" << EXECUTION_TIME_OF_EXHAUSTIVE_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
-    std::cout << "Number of returned tuples: " << numberOfReturnedTuples << "\n";
-    std::cout << "Number of visited nodes: " << numberOfVisitedNodes << "\n";
-    std::cout << maxDepth << std::endl;
-    return 0;
 }
