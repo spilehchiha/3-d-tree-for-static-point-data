@@ -587,8 +587,8 @@ public:
 
 
 /* Declare the two-dimensional coordinates array that contains (x,y,z) coordinates. */
-float coordinates[2582][3];
-#define NUM_TUPLES (2582)
+float coordinates[10000000][3];
+#define NUM_TUPLES (10000000)
 #define SEARCH_DISTANCE (INFINITY)
 /* Create a simple k-d tree and print its topology for inspection. */
 int main(int argc, const char * argv[]) {
