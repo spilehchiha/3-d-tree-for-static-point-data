@@ -417,6 +417,9 @@ public:
         if (this->distance > cut) {
             inside = false;
         }
+        if (this->distance > cut || this->distance == 0) {
+            inside = false;
+        }
         //}
         if (inside) {
             cut = 0;
@@ -424,11 +427,21 @@ public:
             result.push_back(*this); // The push_back function expects a KdNode for a call by reference.
         }
         
-        if ( this->ltChild != NULL && (query[axis]) <= this->tuple[axis] ) {
+        if (depth == 0) {
+            std::list<KdNode> ltResult = this->ltChild->searchKdTree(query, cut, dim, depth + 1);
+            result.splice(result.end(), ltResult); // Can't substitute searchKdTree(...) for ltResult.
+            
+            if ( this->gtChild != NULL && /*(query[axis]) >= this->tuple[axis]*/ (abs(query[axis] - this->tuple[axis]) <= abs(this->tuple[axis] - this->gtChild->tuple[axis]))) {
+                std::list<KdNode> gtResult = this->gtChild->searchKdTree(query, cut, dim, depth + 1);
+                result.splice(result.end(), gtResult); // Can't substitute searchKdTree(...) for gtResult.
+            }
+        }
+        
+        if ( this->ltChild != NULL && (query[axis]) <= this->tuple[axis]) {
             std::list<KdNode> ltResult = this->ltChild->searchKdTree(query, cut, dim, depth + 1);
             result.splice(result.end(), ltResult); // Can't substitute searchKdTree(...) for ltResult.
         }
-        if ( this->gtChild != NULL && (query[axis]) >= this->tuple[axis] ) {
+        if ( this->gtChild != NULL && (query[axis]) >= this->tuple[axis]) {
             std::list<KdNode> gtResult = this->gtChild->searchKdTree(query, cut, dim, depth + 1);
             result.splice(result.end(), gtResult); // Can't substitute searchKdTree(...) for gtResult.
         }
@@ -628,7 +641,7 @@ int main(int argc, const char * argv[]) {
     std::cout << "Index size: " << sizeof(KdNode) * NUM_TUPLES / (1024. * 1024.) << "MB\n";
     
     // Print the k-d tree "sideways" with the root at the left. */
-    //std::cout << std::endl;
+    std::cout << std::endl;
     //root->printKdTree(3, 0);
     bool more = true;
     while(more)
@@ -700,17 +713,17 @@ int main(int argc, const char * argv[]) {
             std::cin >> input2;
             if (input2 == "SHOW") {root->rangeSearch(3, 0);}
             else {
-//             Initialize attributes
-            numberOfReturnedTuples = 0;
-            numberOfVisitedNodes = 0;
-            const clock_t BEGINNING_OF_EXHAUSTIVE_SEARCH_PROCEDURE = clock();
-            root -> exhaustiveRangeSearch(3, 0);
-            const double EXECUTION_TIME_OF_EXHAUSTIVE_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_EXHAUSTIVE_SEARCH_PROCEDURE) / CLOCKS_PER_SEC * 1000; // Report the execution time (in minutes).
-            std::cout << "\n" << "Execution time of exhaustive search procedure in miliseconds:\t" << EXECUTION_TIME_OF_EXHAUSTIVE_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
-            std::cout << "Number of returned tuples: " << numberOfReturnedTuples << "\n";
-            std::cout << "Number of visited nodes: " << numberOfVisitedNodes << "\n";
-            continue;
+                //             Initialize attributes
+                //numberOfReturnedTuples = 0;
+                //numberOfVisitedNodes = 0;
+                //const clock_t BEGINNING_OF_EXHAUSTIVE_SEARCH_PROCEDURE = clock();
+                //root -> exhaustiveRangeSearch(3, 0);
+                //const double EXECUTION_TIME_OF_EXHAUSTIVE_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_EXHAUSTIVE_SEARCH_PROCEDURE) / CLOCKS_PER_SEC * 1000; // Report the execution time (in minutes).
+                //std::cout << "\n" << "Execution time of exhaustive search procedure in miliseconds:\t" << EXECUTION_TIME_OF_EXHAUSTIVE_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
+                //std::cout << "Number of returned tuples: " << numberOfReturnedTuples << "\n";
+                //std::cout << "Number of visited nodes: " << numberOfVisitedNodes << "\n";
             }
+            continue;
         }
         else
         {
