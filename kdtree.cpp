@@ -158,14 +158,14 @@ private:
     {
         long end = 0;
         for (long j = 1; j < reference.size(); j++) {
-            //float compare = superKeyCompare(reference.at(j), reference.at(j-1), i, dim);
-            //if (compare < 0) {
-            //    std::cout << "merge sort failure: superKeyCompare(ref[" << j << "], ref["
-            //    << j-1 << "], (" << i << ") = " << compare  << end;
-            //    exit(1);
-            //} else if (compare > 0) {
+            float compare = superKeyCompare(reference.at(j), reference.at(j-1), i, dim);
+            if (compare < 0) {
+                std::cout << "merge sort failure: superKeyCompare(ref[" << j << "], ref["
+                << j-1 << "], (" << i << ") = " << compare  << end;
+                exit(1);
+            } else if (compare > 0) {
                 reference.at(++end) = reference.at(j);
-            //}
+            }
         }
         return end;
     }
@@ -377,17 +377,6 @@ public:
         for (long i = 0; i < end.size(); i++) {
             end.at(i) = removeDuplicates(references.at(i), i, numDimensions);
         }
-        /*
-        // Check that the same number of references was removed from each reference array.
-        for (long i = 0; i < end.size()-1; i++) {
-            for (long j = i + 1; j < end.size(); j++) {
-                if ( end.at(i) != end.at(j) ) {
-                    std::cout << "reference removal error" << std::endl;
-                    exit(1);
-                }
-            }
-        }
-         */
         
         // Build the k-d tree.
         KdNode *root = buildKdTree(references, temporary, 0, end.at(0), numDimensions, 0);
@@ -483,20 +472,47 @@ public:
         std::cout << tuple[dim-1] << ")";
     }
 public:
-    std::vector<std::array<float, 3>> rangeSearch(const long dim, const long depth) /*const*/
+    void rangeSearchNOSHOW(const long dim, const long depth) const
     {
-        std::vector<std::array<float, 3>> rangeSearchResult;
         // Check if the current node is in the query square or not
         if(this->tuple[0] >= leftBottomPoint[0] & this->tuple[0] <= rightAbovePoint[0]){
             if(this->tuple[1] >= leftBottomPoint[1] & this->tuple[1] <= rightAbovePoint[1]){
                 if(this->tuple[2] >= leftBottomPoint[2] & this->tuple[2] <= rightAbovePoint[2]){
                     /*std::cout << this->tuple[0] << ", " << this->tuple[1] << ", "<< this->tuple[2] << "\n";*/
-                    std::array<float, 3> newList;
-                    //float newList[3];
-                    newList[0] = this->tuple[0];
-                    newList[1] = this->tuple[1];
-                    newList[2] = this->tuple[2];
-                    rangeSearchResult.push_back(newList);
+                    numberOfReturnedTuples += 1;
+                }
+            }
+        }
+        
+        numberOfVisitedNodes += 1;
+        
+        long axis = depth % dim;
+        
+        if(this->tuple[axis] >= leftBottomPoint[axis] & this->tuple[axis] <= rightAbovePoint[axis])
+        {
+            if (this->ltChild != NULL)
+                this->ltChild->rangeSearchNOSHOW(dim, depth+1);
+            
+            if (this->gtChild != NULL)
+                this->gtChild->rangeSearchNOSHOW(dim, depth+1);
+        }
+        else if(this->tuple[axis] < leftBottomPoint[axis] & this->tuple[axis] < rightAbovePoint[axis]){
+            if (this->gtChild != NULL)
+                this->gtChild->rangeSearchNOSHOW(dim, depth+1);
+        }
+        else if(this->tuple[axis] > leftBottomPoint[axis] & this->tuple[axis] > rightAbovePoint[axis]){
+            if (this->ltChild != NULL)
+                this->ltChild->rangeSearchNOSHOW(dim, depth+1);
+        }
+    }
+public:
+    void rangeSearch(const long dim, const long depth) const
+    {
+        // Check if the current node is in the query square or not
+        if(this->tuple[0] >= leftBottomPoint[0] & this->tuple[0] <= rightAbovePoint[0]){
+            if(this->tuple[1] >= leftBottomPoint[1] & this->tuple[1] <= rightAbovePoint[1]){
+                if(this->tuple[2] >= leftBottomPoint[2] & this->tuple[2] <= rightAbovePoint[2]){
+                    std::cout << this->tuple[0] << ", " << this->tuple[1] << ", "<< this->tuple[2] << "\n";
                     numberOfReturnedTuples += 1;
                 }
             }
@@ -522,7 +538,6 @@ public:
             if (this->ltChild != NULL)
                 this->ltChild->rangeSearch(dim, depth+1);
         }
-        return rangeSearchResult;
     }
 public:
     void exhaustiveRangeSearch(const long dim, const long depth) const
@@ -531,7 +546,7 @@ public:
         if(this->tuple[0] >= leftBottomPoint[0] & this->tuple[0] <= rightAbovePoint[0]){
             if(this->tuple[1] >= leftBottomPoint[1] & this->tuple[1] <= rightAbovePoint[1]){
                 if(this->tuple[2] >= leftBottomPoint[2] & this->tuple[2] <= rightAbovePoint[2]){
-                    /*std::cout << this->tuple[0] << ", " << this->tuple[1] << ", "<< this->tuple[2] << "\n";*/
+                    std::cout << this->tuple[0] << ", " << this->tuple[1] << ", "<< this->tuple[2] << "\n";
                     numberOfReturnedTuples += 1;
                 }
             }
@@ -551,7 +566,8 @@ public:
      * calling parameters:
      *
      * dim - the number of dimensions
-     * depth - the depth in the k-d tree*/
+     * depth - the depth in the k-d tree
+     */
     
 public:
     void printKdTree(const unsigned short dim, const unsigned short depth) const
@@ -571,25 +587,14 @@ public:
 
 
 /* Declare the two-dimensional coordinates array that contains (x,y,z) coordinates. */
-float coordinates[10000000][3];
-#define NUM_TUPLES (10000000)
+float coordinates[2582][3];
+#define NUM_TUPLES (2582)
 #define SEARCH_DISTANCE (INFINITY)
 /* Create a simple k-d tree and print its topology for inspection. */
 int main(int argc, const char * argv[]) {
     std::cout << std::setprecision(7);
     std::string inputFile = argv[1];
-    
-    int fd = open(inputFile.c_str(), O_RDONLY, S_IRUSR | S_IWUSR);
-    struct stat sb;
-    if (fstat(fd, &sb) == -1) {
-        perror("Couldn't get file size!\n");
-    }
-    printf("file size is %lld\n", sb.st_size);
-    
-    //char *fileInMemory = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-    
     const clock_t BEGINNING_OF_INPUT_PROCEDURE= clock();
-    
     std::ifstream input_data;
     input_data.open(inputFile.c_str());
     char garbageChar;
@@ -601,9 +606,8 @@ int main(int argc, const char * argv[]) {
         iss >> garbageChar >> coordinates[i][0] >> garbageChar >> coordinates[i][1] >> garbageChar >> coordinates[i][2] >> garbageChar;
         i++;
     }
-    
     const double EXECUTION_OF_INPUT_PROCEDURE = (double)(clock() - BEGINNING_OF_INPUT_PROCEDURE) / CLOCKS_PER_SEC * 1000; // Report the execution time (in seconds).
-    std::cout << "\n" << "Execution time of inpute procedure in miliseconds:\t" << EXECUTION_OF_INPUT_PROCEDURE << "\n"; // Print out the time elapsed inputting the data.
+    std::cout << "\n" << "Execution time of input procedure in miliseconds:\t" << EXECUTION_OF_INPUT_PROCEDURE << "\n"; // Print out the time elapsed inputting the data.
     
     //std::istringstream instr(line);
     //instr >> xCoordinate >> yCoordinate >> zCoordinate;
@@ -621,6 +625,7 @@ int main(int argc, const char * argv[]) {
     KdNode *root = KdNode::createKdTree(coordinateVector, 3);
     const double EXECUTION_TIME_OF_BUILD_PROCEDURE = (double)(clock() - BEGINNING_OF_BUILD_PROCEDURE) / CLOCKS_PER_SEC * 1000; // Report the execution time (in seconds).
     std::cout << "\n" << "Execution time of build procedure in miliseconds:\t" << EXECUTION_TIME_OF_BUILD_PROCEDURE << "\n"; // Print out the time elapsed building.
+    std::cout << "Index size: " << sizeof(KdNode) * NUM_TUPLES / (1024. * 1024.) << "MB\n";
     
     // Print the k-d tree "sideways" with the root at the left. */
     //std::cout << std::endl;
@@ -681,21 +686,21 @@ int main(int argc, const char * argv[]) {
             rightAbovePoint[0] = x2;
             rightAbovePoint[1] = y2;
             rightAbovePoint[2] = z2;
-            
             // Initialize attributes
             numberOfReturnedTuples = 0;
             numberOfVisitedNodes = 0;
             const clock_t BEGINNING_OF_RANGE_SEARCH_PROCEDURE = clock();
-            std::vector<std::array<float, 3>> rangeSearchResult = root -> rangeSearch(3, 0);
+            root -> rangeSearchNOSHOW(3, 0);
             const double EXECUTION_TIME_OF_RANGE_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_RANGE_SEARCH_PROCEDURE) / CLOCKS_PER_SEC * 1000; // Report the execution time (in minutes).
             std::cout << "\n" << "Execution time of range search procedure in miliseconds:\t" << EXECUTION_TIME_OF_RANGE_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
             std::cout << "Number of returned tuples: " << numberOfReturnedTuples << "\n";
             std::cout << "Number of visited nodes: " << numberOfVisitedNodes << "\n";
             std::cout << "If you do want to observe the returned tuples, do please type 'SHOW'!...: " << std::endl;
             std::string input2;
-            std::cin >> input;
-            
-            // Initialize attributes
+            std::cin >> input2;
+            if (input2 == "SHOW") {root->rangeSearch(3, 0);}
+            else {
+//             Initialize attributes
             numberOfReturnedTuples = 0;
             numberOfVisitedNodes = 0;
             const clock_t BEGINNING_OF_EXHAUSTIVE_SEARCH_PROCEDURE = clock();
@@ -705,10 +710,11 @@ int main(int argc, const char * argv[]) {
             std::cout << "Number of returned tuples: " << numberOfReturnedTuples << "\n";
             std::cout << "Number of visited nodes: " << numberOfVisitedNodes << "\n";
             continue;
+            }
         }
         else
         {
-            std::cout << "Oopsy daisy!... I could not understand that input. Do please enter either Q1 and its related parameters (i.e., x1, x2, y1, y2, z1, and z2) for range search, Q2 and its related parameters (i.e., x1, y1, and z1) for nearest neighbour search, or QUIT to quit the program!" << std::endl;
+            std::cout << "Oopsy daisy!... I could not understand that input! ";
             continue;
         }
     }
