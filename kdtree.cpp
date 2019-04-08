@@ -18,19 +18,26 @@
 #include <iomanip>
 #include <sys/time.h>
 #include <limits>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <list>
+#include <array>
 
 /* Range Query Configuration */
 float leftBottomPoint[] = {0, 0, 0};
 float rightAbovePoint[] = {0, 0, 0};
 unsigned long numberOfReturnedTuples = 0;
 unsigned long numberOfVisitedNodes = 0;
-//long maxDepth = 0;
 /* One node of a k-d tree */
 class KdNode
 {
 private:
     float distance;
-    //long nodeDepth;
     const float *tuple;
     KdNode *ltChild,  *gtChild;
     
@@ -145,19 +152,20 @@ private:
      *
      * returns: the end index of the reference array following removal of duplicate elements
      */
+    
 private:
     static long removeDuplicates(std::vector<float *>& reference, const long i, const long dim)
     {
         long end = 0;
         for (long j = 1; j < reference.size(); j++) {
-            float compare = superKeyCompare(reference.at(j), reference.at(j-1), i, dim);
-            if (compare < 0) {
-                std::cout << "merge sort failure: superKeyCompare(ref[" << j << "], ref["
-                << j-1 << "], (" << i << ") = " << compare  << end;
-                exit(1);
-            } else if (compare > 0) {
+            //float compare = superKeyCompare(reference.at(j), reference.at(j-1), i, dim);
+            //if (compare < 0) {
+            //    std::cout << "merge sort failure: superKeyCompare(ref[" << j << "], ref["
+            //    << j-1 << "], (" << i << ") = " << compare  << end;
+            //    exit(1);
+            //} else if (compare > 0) {
                 reference.at(++end) = reference.at(j);
-            }
+            //}
         }
         return end;
     }
@@ -192,14 +200,12 @@ private:
             
             // Only one reference was passed to this function, so add it to the tree.
             node = new KdNode( references.at(0).at(end) );
-            //node->nodeDepth = depth;
             
         } else if (end == start + 1) {
             
             // Two references were passed to this function in sorted order, so store the start
             // element at this level of the tree and store the end element as the > child.
             node = new KdNode( references.at(0).at(start) );
-            //node->nodeDepth = depth;
             node->gtChild = new KdNode( references.at(0).at(end) );
             
         } else if (end == start + 2) {
@@ -208,7 +214,6 @@ private:
             // store the median element at this level of the tree, store the start
             // element as the < child and store the end element as the > child.
             node = new KdNode( references.at(0).at(start + 1) );
-            //node->nodeDepth = depth;
             node->ltChild = new KdNode( references.at(0).at(start) );
             node->gtChild = new KdNode( references.at(0).at(end) );
             
@@ -222,7 +227,6 @@ private:
             
             // Store the median element of references[0] in a new kdNode.
             node = new KdNode( references.at(0).at(median) );
-            //node->nodeDepth = depth;
             
             // Copy references[0] to the temporary array before partitioning.
             for (long i = start; i <= end; i++) {
@@ -297,7 +301,6 @@ private:
         }
         
         // Return the pointer to the root of the k-d tree.
-        //if (depth > maxDepth) {maxDepth = depth;}
         return node;
     }
     
@@ -374,7 +377,7 @@ public:
         for (long i = 0; i < end.size(); i++) {
             end.at(i) = removeDuplicates(references.at(i), i, numDimensions);
         }
-        
+        /*
         // Check that the same number of references was removed from each reference array.
         for (long i = 0; i < end.size()-1; i++) {
             for (long j = i + 1; j < end.size(); j++) {
@@ -384,6 +387,7 @@ public:
                 }
             }
         }
+         */
         
         // Build the k-d tree.
         KdNode *root = buildKdTree(references, temporary, 0, end.at(0), numDimensions, 0);
@@ -479,13 +483,20 @@ public:
         std::cout << tuple[dim-1] << ")";
     }
 public:
-    void rangeSearch(const long dim, const long depth) const
+    std::vector<std::array<float, 3>> rangeSearch(const long dim, const long depth) /*const*/
     {
+        std::vector<std::array<float, 3>> rangeSearchResult;
         // Check if the current node is in the query square or not
         if(this->tuple[0] >= leftBottomPoint[0] & this->tuple[0] <= rightAbovePoint[0]){
             if(this->tuple[1] >= leftBottomPoint[1] & this->tuple[1] <= rightAbovePoint[1]){
                 if(this->tuple[2] >= leftBottomPoint[2] & this->tuple[2] <= rightAbovePoint[2]){
                     /*std::cout << this->tuple[0] << ", " << this->tuple[1] << ", "<< this->tuple[2] << "\n";*/
+                    std::array<float, 3> newList;
+                    //float newList[3];
+                    newList[0] = this->tuple[0];
+                    newList[1] = this->tuple[1];
+                    newList[2] = this->tuple[2];
+                    rangeSearchResult.push_back(newList);
                     numberOfReturnedTuples += 1;
                 }
             }
@@ -511,6 +522,7 @@ public:
             if (this->ltChild != NULL)
                 this->ltChild->rangeSearch(dim, depth+1);
         }
+        return rangeSearchResult;
     }
 public:
     void exhaustiveRangeSearch(const long dim, const long depth) const
@@ -566,24 +578,33 @@ float coordinates[10000000][3];
 int main(int argc, const char * argv[]) {
     std::cout << std::setprecision(7);
     std::string inputFile = argv[1];
+    
+    int fd = open(inputFile.c_str(), O_RDONLY, S_IRUSR | S_IWUSR);
+    struct stat sb;
+    if (fstat(fd, &sb) == -1) {
+        perror("Couldn't get file size!\n");
+    }
+    printf("file size is %lld\n", sb.st_size);
+    
+    //char *fileInMemory = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    
+    const clock_t BEGINNING_OF_INPUT_PROCEDURE= clock();
+    
     std::ifstream input_data;
     input_data.open(inputFile.c_str());
-    float xCoordinate, yCoordinate, zCoordinate;
-    char comma;
-    char rightParen;
-    char leftParen;
-    std::string line;
+    char garbageChar;
     int i = 0;
+    std::string line;
     while (std::getline(input_data, line))
     {
         std::istringstream iss(line);
-        //if (!(iss >> xCoordinate >> yCoordinate >> zCoordinate)) { break; } // error
-        iss >> leftParen >> xCoordinate >> comma >> yCoordinate >> comma >> zCoordinate >> rightParen;
-        coordinates[i][0] = xCoordinate;
-        coordinates[i][1] = yCoordinate;
-        coordinates[i][2] = zCoordinate;
+        iss >> garbageChar >> coordinates[i][0] >> garbageChar >> coordinates[i][1] >> garbageChar >> coordinates[i][2] >> garbageChar;
         i++;
     }
+    
+    const double EXECUTION_OF_INPUT_PROCEDURE = (double)(clock() - BEGINNING_OF_INPUT_PROCEDURE) / CLOCKS_PER_SEC * 1000; // Report the execution time (in seconds).
+    std::cout << "\n" << "Execution time of inpute procedure in miliseconds:\t" << EXECUTION_OF_INPUT_PROCEDURE << "\n"; // Print out the time elapsed inputting the data.
+    
     //std::istringstream instr(line);
     //instr >> xCoordinate >> yCoordinate >> zCoordinate;
     // Create the k-d tree.  The two-dimensional array is indexed by
@@ -598,8 +619,8 @@ int main(int argc, const char * argv[]) {
     }
     const clock_t BEGINNING_OF_BUILD_PROCEDURE = clock(); // Mark the beginning of the building procedure.
     KdNode *root = KdNode::createKdTree(coordinateVector, 3);
-    const double EXECUTION_TIME_OF_BUILD_PROCEDURE = (double)(clock() - BEGINNING_OF_BUILD_PROCEDURE) / CLOCKS_PER_SEC; // Report the execution time (in seconds).
-    std::cout << "\n" << "Execution time of build procedure in minutes:\t" << EXECUTION_TIME_OF_BUILD_PROCEDURE << "\n"; // Print out the time elapsed building.
+    const double EXECUTION_TIME_OF_BUILD_PROCEDURE = (double)(clock() - BEGINNING_OF_BUILD_PROCEDURE) / CLOCKS_PER_SEC * 1000; // Report the execution time (in seconds).
+    std::cout << "\n" << "Execution time of build procedure in miliseconds:\t" << EXECUTION_TIME_OF_BUILD_PROCEDURE << "\n"; // Print out the time elapsed building.
     
     // Print the k-d tree "sideways" with the root at the left. */
     //std::cout << std::endl;
@@ -626,8 +647,8 @@ int main(int argc, const char * argv[]) {
             query[2] = z1;
             const clock_t BEGINNING_OF_SEARCH_PROCEDURE = clock(); // Mark the beginning of the execution of the searching procedure.
             std::list<KdNode> kdList = root->searchKdTree(query, SEARCH_DISTANCE, 3, 0);
-            const double EXECUTION_TIME_OF_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_SEARCH_PROCEDURE) / CLOCKS_PER_SEC; // Report the execution time (in seconds).
-            std::cout << "\n" << "Execution time of search procedure in seconds:\t" << EXECUTION_TIME_OF_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
+            const double EXECUTION_TIME_OF_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_SEARCH_PROCEDURE) / CLOCKS_PER_SEC * 1000; // Report the execution time (in seconds).
+            std::cout << "\n" << "Execution time of search procedure in miliseconds:\t" << EXECUTION_TIME_OF_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
             std::cout << std::endl << kdList.size() << " nodes within " << SEARCH_DISTANCE << " units of ";
             KdNode::printTuple(query, 3);
             std::cout << " in all dimensions." << std::endl << std::endl;
@@ -665,22 +686,24 @@ int main(int argc, const char * argv[]) {
             numberOfReturnedTuples = 0;
             numberOfVisitedNodes = 0;
             const clock_t BEGINNING_OF_RANGE_SEARCH_PROCEDURE = clock();
-            root -> rangeSearch(3, 0);
-            const double EXECUTION_TIME_OF_RANGE_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_RANGE_SEARCH_PROCEDURE) / CLOCKS_PER_SEC; // Report the execution time (in minutes).
-            std::cout << "\n" << "Execution time of range search procedure in seconds:\t" << EXECUTION_TIME_OF_RANGE_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
+            std::vector<std::array<float, 3>> rangeSearchResult = root -> rangeSearch(3, 0);
+            const double EXECUTION_TIME_OF_RANGE_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_RANGE_SEARCH_PROCEDURE) / CLOCKS_PER_SEC * 1000; // Report the execution time (in minutes).
+            std::cout << "\n" << "Execution time of range search procedure in miliseconds:\t" << EXECUTION_TIME_OF_RANGE_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
             std::cout << "Number of returned tuples: " << numberOfReturnedTuples << "\n";
             std::cout << "Number of visited nodes: " << numberOfVisitedNodes << "\n";
+            std::cout << "If you do want to observe the returned tuples, do please type 'SHOW'!...: " << std::endl;
+            std::string input2;
+            std::cin >> input;
             
             // Initialize attributes
             numberOfReturnedTuples = 0;
             numberOfVisitedNodes = 0;
             const clock_t BEGINNING_OF_EXHAUSTIVE_SEARCH_PROCEDURE = clock();
             root -> exhaustiveRangeSearch(3, 0);
-            const double EXECUTION_TIME_OF_EXHAUSTIVE_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_EXHAUSTIVE_SEARCH_PROCEDURE) / CLOCKS_PER_SEC; // Report the execution time (in minutes).
-            std::cout << "\n" << "Execution time of exhaustive search procedure in seconds:\t" << EXECUTION_TIME_OF_EXHAUSTIVE_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
+            const double EXECUTION_TIME_OF_EXHAUSTIVE_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_EXHAUSTIVE_SEARCH_PROCEDURE) / CLOCKS_PER_SEC * 1000; // Report the execution time (in minutes).
+            std::cout << "\n" << "Execution time of exhaustive search procedure in miliseconds:\t" << EXECUTION_TIME_OF_EXHAUSTIVE_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
             std::cout << "Number of returned tuples: " << numberOfReturnedTuples << "\n";
             std::cout << "Number of visited nodes: " << numberOfVisitedNodes << "\n";
-            //std::cout << maxDepth << std::endl;
             continue;
         }
         else
