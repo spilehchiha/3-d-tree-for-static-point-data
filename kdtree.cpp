@@ -26,7 +26,6 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <list>
-#include <array>
 
 /* Range Query Configuration */
 float leftBottomPoint[] = {0, 0, 0};
@@ -37,14 +36,12 @@ unsigned long numberOfVisitedNodes = 0;
 class KdNode
 {
 private:
-    float distance;
     const float *tuple;
     KdNode *ltChild,  *gtChild;
     
 public:
     KdNode(const float *t)
     {
-        this->distance = 0;
         this->tuple = t;
         this->ltChild = this->gtChild = NULL;
     }
@@ -413,17 +410,17 @@ public:
         // in all k dimensions, add the k-d node to a list.
         std::list<KdNode> result;
         bool inside = true;
-        this->distance = sqrt((query[0] - this->tuple[0]) * (query[0] - this->tuple[0]) + (query[1] - this->tuple[1]) * (query[1] - this->tuple[1]) + (query[2] - this->tuple[2]) * (query[2] - this->tuple[2]));
-        if (this->distance > cut) {
+        float distance = (query[0] - this->tuple[0]) * (query[0] - this->tuple[0]) + (query[1] - this->tuple[1]) * (query[1] - this->tuple[1]) + (query[2] - this->tuple[2]) * (query[2] - this->tuple[2]);
+        if (distance > cut) {
             inside = false;
         }
-        if (this->distance > cut || this->distance == 0) {
+        if (distance > cut || distance == 0) {
             inside = false;
         }
         //}
         if (inside) {
             cut = 0;
-            cut = this->distance;
+            cut = distance;
             result.push_back(*this); // The push_back function expects a KdNode for a call by reference.
         }
         
@@ -623,7 +620,6 @@ int main(int argc, const char * argv[]) {
     std::cout << "\n" << "Execution time of input procedure in miliseconds:\t" << EXECUTION_OF_INPUT_PROCEDURE << "\n"; // Print out the time elapsed inputting the data.
     
     //std::istringstream instr(line);
-    //instr >> xCoordinate >> yCoordinate >> zCoordinate;
     // Create the k-d tree.  The two-dimensional array is indexed by
     // a vector<long*> in order to pass it as a function argument.
     // The array is not copied to a vector< vector<long> > because,
@@ -641,7 +637,7 @@ int main(int argc, const char * argv[]) {
     std::cout << "Index size: " << sizeof(KdNode) * NUM_TUPLES / (1024. * 1024.) << "MB\n";
     
     // Print the k-d tree "sideways" with the root at the left. */
-    std::cout << std::endl;
+    //std::cout << std::endl;
     //root->printKdTree(3, 0);
     bool more = true;
     while(more)
@@ -695,7 +691,6 @@ int main(int argc, const char * argv[]) {
             leftBottomPoint[0] = x1;
             leftBottomPoint[1] = y1;
             leftBottomPoint[2] = z1;
-            
             rightAbovePoint[0] = x2;
             rightAbovePoint[1] = y2;
             rightAbovePoint[2] = z2;
@@ -713,15 +708,6 @@ int main(int argc, const char * argv[]) {
             std::cin >> input2;
             if (input2 == "SHOW") {root->rangeSearch(3, 0);}
             else {
-                //             Initialize attributes
-                //numberOfReturnedTuples = 0;
-                //numberOfVisitedNodes = 0;
-                //const clock_t BEGINNING_OF_EXHAUSTIVE_SEARCH_PROCEDURE = clock();
-                //root -> exhaustiveRangeSearch(3, 0);
-                //const double EXECUTION_TIME_OF_EXHAUSTIVE_SEARCH_PROCEDURE = (double)(clock() - BEGINNING_OF_EXHAUSTIVE_SEARCH_PROCEDURE) / CLOCKS_PER_SEC * 1000; // Report the execution time (in minutes).
-                //std::cout << "\n" << "Execution time of exhaustive search procedure in miliseconds:\t" << EXECUTION_TIME_OF_EXHAUSTIVE_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
-                //std::cout << "Number of returned tuples: " << numberOfReturnedTuples << "\n";
-                //std::cout << "Number of visited nodes: " << numberOfVisitedNodes << "\n";
             }
             continue;
         }
