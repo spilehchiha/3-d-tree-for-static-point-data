@@ -17,21 +17,12 @@
 #include <cmath>
 #include <iomanip>
 #include <sys/time.h>
-#include <limits>
-#include <sys/types.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <list>
 
 /* Range Query Configuration */
-float leftBottomPoint[] = {0, 0, 0};
-float rightAbovePoint[] = {0, 0, 0};
-unsigned long numberOfReturnedTuples = 0;
-unsigned long numberOfVisitedNodes = 0;
+float leftBottomPoint[3];
+float rightAbovePoint[3];
+unsigned long numberOfReturnedTuples;
+unsigned long numberOfVisitedNodes;
 /* One node of a k-d tree */
 class KdNode
 {
@@ -250,29 +241,6 @@ private:
                     }
                 }
                 
-                // Check the new indices for the reference array.
-                if (lower < start || lower >= median) {
-                    std::cout << "incorrect range for lower at depth = " << depth << " : start = "
-                    << start << "  lower = " << lower << "  median = " << median << end;
-                    exit(1);
-                }
-                
-                if (upper <= median || upper > end) {
-                    std::cout << "incorrect range for upper at depth = " << depth << " : median = "
-                    << median << "  upper = " << upper << "  end = " << end << end;
-                    exit(1);
-                }
-                
-                if (i > 1 && lower != lowerSave) {
-                    std::cout << " lower = " << lower << "  !=  lowerSave = " << lowerSave << end;
-                    exit(1);
-                }
-                
-                if (i > 1 && upper != upperSave) {
-                    std::cout << " upper = " << upper << "  !=  upperSave = " << upperSave << end;
-                    exit(1);
-                }
-                
                 lowerSave = lower;
                 upperSave = upper;
             }
@@ -288,64 +256,10 @@ private:
             // Recursively build the > branch of the tree.
             node->gtChild = buildKdTree(references, temporary, median+1, upper, dim, depth+1);
             
-        } else if (end < start) {
-            
-            // This is an illegal condition that should never occur, so test for it last.
-            std::cout << "error has occurred at depth = " << depth << " : end = " << end
-            << "  <  start = " << start << end;
-            exit(1);
-            
         }
         
         // Return the pointer to the root of the k-d tree.
         return node;
-    }
-    
-    /*
-     * Walk the k-d tree and check that the children of a node are in the correct branch of that node.
-     *
-     * calling parameters:
-     *
-     * dim - the number of dimensions
-     * depth - the depth in the k-d tree
-     *
-     * returns: a count of the number of kdNodes in the k-d tree
-     */
-private:
-    long verifyKdTree(const long dim, const long depth) const
-    {
-        long count = 1 ;
-        if (this->tuple == NULL) {
-            std::cout << "point is null!" << std::endl;
-            exit(1);
-        }
-        
-        // The partition cycles as x, y, z, w...
-        long axis = depth % dim;
-        
-        if (this->ltChild != NULL) {
-            if (this->ltChild->tuple[axis] > this->tuple[axis]) {
-                std::cout << "child is > node!" << std::endl;
-                exit(1);
-            }
-            if (superKeyCompare(this->ltChild->tuple, this->tuple, axis, dim) >= 0) {
-                std::cout << "child is >= node!" << std::endl;
-                exit(1);
-            }
-            count += this->ltChild->verifyKdTree(dim, depth + 1);
-        }
-        if (this->gtChild != NULL) {
-            if (this->gtChild->tuple[axis] < this->tuple[axis]) {
-                std::cout << "child is < node!" << std::endl;
-                exit(1);
-            }
-            if (superKeyCompare(this->gtChild->tuple, this->tuple, axis, dim) <= 0) {
-                std::cout << "child is <= node" << std::endl;
-                exit(1);
-            }
-            count += this->gtChild->verifyKdTree(dim, depth + 1);
-        }
-        return count;
     }
     
     /*
@@ -379,8 +293,8 @@ public:
         KdNode *root = buildKdTree(references, temporary, 0, end.at(0), numDimensions, 0);
         
         // Verify the k-d tree and report the number of KdNodes.
-        long numberOfNodes = root->verifyKdTree(numDimensions, 0);
-        std::cout << std::endl << "Number of nodes = " << numberOfNodes << std::endl;
+        //long numberOfNodes = root->verifyKdTree(numDimensions, 0);
+        //std::cout << std::endl << "Number of nodes = " << numberOfNodes << std::endl;
         
         // Return the pointer to the root of the k-d tree.
         return root;
@@ -482,40 +396,6 @@ public:
         std::cout << tuple[dim-1] << ")";
     }
 public:
-    void rangeSearchNOSHOW(const long dim, const long depth) const
-    {
-        // Check if the current node is in the query square or not
-        if(this->tuple[0] >= leftBottomPoint[0] & this->tuple[0] <= rightAbovePoint[0]){
-            if(this->tuple[1] >= leftBottomPoint[1] & this->tuple[1] <= rightAbovePoint[1]){
-                if(this->tuple[2] >= leftBottomPoint[2] & this->tuple[2] <= rightAbovePoint[2]){
-                    /*std::cout << this->tuple[0] << ", " << this->tuple[1] << ", "<< this->tuple[2] << "\n";*/
-                    numberOfReturnedTuples += 1;
-                }
-            }
-        }
-        
-        numberOfVisitedNodes += 1;
-        
-        long axis = depth % dim;
-        
-        if(this->tuple[axis] >= leftBottomPoint[axis] & this->tuple[axis] <= rightAbovePoint[axis])
-        {
-            if (this->ltChild != NULL)
-                this->ltChild->rangeSearchNOSHOW(dim, depth+1);
-            
-            if (this->gtChild != NULL)
-                this->gtChild->rangeSearchNOSHOW(dim, depth+1);
-        }
-        else if(this->tuple[axis] < leftBottomPoint[axis] & this->tuple[axis] < rightAbovePoint[axis]){
-            if (this->gtChild != NULL)
-                this->gtChild->rangeSearchNOSHOW(dim, depth+1);
-        }
-        else if(this->tuple[axis] > leftBottomPoint[axis] & this->tuple[axis] > rightAbovePoint[axis]){
-            if (this->ltChild != NULL)
-                this->ltChild->rangeSearchNOSHOW(dim, depth+1);
-        }
-    }
-public:
     void rangeSearch(const long dim, const long depth) const
     {
         // Check if the current node is in the query square or not
@@ -550,13 +430,13 @@ public:
         }
     }
 public:
-    void exhaustiveRangeSearch(const long dim, const long depth) const
+    void rangeSearchNOSHOW(const long dim, const long depth) const
     {
         // Check if the current node is in the query square or not
         if(this->tuple[0] >= leftBottomPoint[0] & this->tuple[0] <= rightAbovePoint[0]){
             if(this->tuple[1] >= leftBottomPoint[1] & this->tuple[1] <= rightAbovePoint[1]){
                 if(this->tuple[2] >= leftBottomPoint[2] & this->tuple[2] <= rightAbovePoint[2]){
-                    std::cout << this->tuple[0] << ", " << this->tuple[1] << ", "<< this->tuple[2] << "\n";
+                    /*std::cout << this->tuple[0] << ", " << this->tuple[1] << ", "<< this->tuple[2] << "\n";*/
                     numberOfReturnedTuples += 1;
                 }
             }
@@ -564,42 +444,32 @@ public:
         
         numberOfVisitedNodes += 1;
         
-        if (this->ltChild != NULL)
-            this->ltChild->exhaustiveRangeSearch(dim, depth+1);
+        long axis = depth % dim;
         
-        if (this->gtChild != NULL)
-            this->gtChild->exhaustiveRangeSearch(dim, depth+1);
-    }
-    /*
-     * Print the k-d tree "sideways" with the root at the left.
-     *
-     * calling parameters:
-     *
-     * dim - the number of dimensions
-     * depth - the depth in the k-d tree
-     */
-    
-public:
-    void printKdTree(const unsigned short dim, const unsigned short depth) const
-    {
-        if (this->gtChild != NULL) {
-            this->gtChild->printKdTree(dim, depth + 1);
+        if(this->tuple[axis] >= leftBottomPoint[axis] & this->tuple[axis] <= rightAbovePoint[axis])
+        {
+            if (this->ltChild != NULL)
+                this->ltChild->rangeSearchNOSHOW(dim, depth+1);
+            
+            if (this->gtChild != NULL)
+                this->gtChild->rangeSearchNOSHOW(dim, depth+1);
         }
-        for (short i = 0; i < depth; i++) std::cout << "       ";
-        printTuple(this->tuple, dim);
-        std::cout << std::endl;
-        if (this->ltChild != NULL) {
-            this->ltChild->printKdTree(dim, depth + 1);
+        else if(this->tuple[axis] < leftBottomPoint[axis] & this->tuple[axis] < rightAbovePoint[axis]){
+            if (this->gtChild != NULL)
+                this->gtChild->rangeSearchNOSHOW(dim, depth+1);
+        }
+        else if(this->tuple[axis] > leftBottomPoint[axis] & this->tuple[axis] > rightAbovePoint[axis]){
+            if (this->ltChild != NULL)
+                this->ltChild->rangeSearchNOSHOW(dim, depth+1);
         }
     }
-    
 };
 
 
 /* Declare the two-dimensional coordinates array that contains (x,y,z) coordinates. */
 float coordinates[10000000][3];
 #define NUM_TUPLES (10000000)
-#define SEARCH_DISTANCE (INFINITY)
+#define SEARCH_DISTANCE (+INFINITY)
 /* Create a simple k-d tree and print its topology for inspection. */
 int main(int argc, const char * argv[]) {
     std::cout << std::setprecision(7);
@@ -619,7 +489,6 @@ int main(int argc, const char * argv[]) {
     const double EXECUTION_OF_INPUT_PROCEDURE = (double)(clock() - BEGINNING_OF_INPUT_PROCEDURE) / CLOCKS_PER_SEC * 1000; // Report the execution time (in seconds).
     std::cout << "\n" << "Execution time of input procedure in miliseconds:\t" << EXECUTION_OF_INPUT_PROCEDURE << "\n"; // Print out the time elapsed inputting the data.
     
-    //std::istringstream instr(line);
     // Create the k-d tree.  The two-dimensional array is indexed by
     // a vector<long*> in order to pass it as a function argument.
     // The array is not copied to a vector< vector<long> > because,
@@ -635,10 +504,6 @@ int main(int argc, const char * argv[]) {
     const double EXECUTION_TIME_OF_BUILD_PROCEDURE = (double)(clock() - BEGINNING_OF_BUILD_PROCEDURE) / CLOCKS_PER_SEC * 1000; // Report the execution time (in seconds).
     std::cout << "\n" << "Execution time of build procedure in miliseconds:\t" << EXECUTION_TIME_OF_BUILD_PROCEDURE << "\n"; // Print out the time elapsed building.
     std::cout << "Index size: " << sizeof(KdNode) * NUM_TUPLES / (1024. * 1024.) << "MB\n";
-    
-    // Print the k-d tree "sideways" with the root at the left. */
-    //std::cout << std::endl;
-    //root->printKdTree(3, 0);
     bool more = true;
     while(more)
     {
@@ -685,7 +550,7 @@ int main(int argc, const char * argv[]) {
             float x2;
             float y2;
             float z2;
-            std::cout << "Do please enter the range coordinates in the format [x1 x2 y1 y2 z1 z2] in order for the concerned tuples to be found, counted, and returned as you wish!..." << std::endl;
+            std::cout << "Do please enter the range coordinates in the format [x1 y1 z1 x2 y2 z2] in order for the concerned tuples to be found, counted, and returned as you wish!" << std::endl;
             std::cin >> x1 >> x2 >> y1 >> y2 >> z1 >> z2;
             // Define the query range
             leftBottomPoint[0] = x1;
@@ -703,7 +568,7 @@ int main(int argc, const char * argv[]) {
             std::cout << "\n" << "Execution time of range search procedure in miliseconds:\t" << EXECUTION_TIME_OF_RANGE_SEARCH_PROCEDURE << "\n"; // Print out the time elapsed sorting.
             std::cout << "Number of returned tuples: " << numberOfReturnedTuples << "\n";
             std::cout << "Number of visited nodes: " << numberOfVisitedNodes << "\n";
-            std::cout << "If you do want to observe the returned tuples, do please type 'SHOW'!...: " << std::endl;
+            std::cout << "If you do want to observe the returned tuples, do please type [SHOW]!: " << std::endl;
             std::string input2;
             std::cin >> input2;
             if (input2 == "SHOW") {root->rangeSearch(3, 0);}
@@ -713,7 +578,7 @@ int main(int argc, const char * argv[]) {
         }
         else
         {
-            std::cout << "Oopsy daisy!... I could not understand that input! ";
+            std::cout << "Oopsy daisy! I could not understand that input! ";
             continue;
         }
     }
